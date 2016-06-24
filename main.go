@@ -6,13 +6,10 @@ import (
 	"log"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/nlopes/slack"
 	"github.com/ryanbarry/coinbot/btcaverage"
 )
-
-var avg *btcaverage.GlobalAvg
 
 func main() {
 	debugOn := flag.Bool("debug", false, "Enable debug logging?")
@@ -23,9 +20,9 @@ func main() {
 		log.Println("Debug logging turned on.")
 	}
 
-	var err error
-	if avg, err = btcaverage.GetCurrentGlobalAvg("USD"); err != nil {
-		log.Fatal("Error initializing current BTC price: ", err.Error())
+	btcTracker, err := btcaverage.NewGlobalTracker("USD")
+	if err != nil {
+		log.Fatalf("Could not initialize the Global BTC Tracker!")
 	}
 
 	if *slackToken == "" {
@@ -47,23 +44,23 @@ func main() {
 			msg := <-slackRtm.IncomingEvents
 
 			switch ev := msg.Data.(type) {
-			case *slack.HelloEvent:
-				log.Println("Got Hello from Slack.")
-			case *slack.ConnectedEvent:
-				log.Println("Connection count: ", ev.ConnectionCount)
 			case *slack.MessageEvent:
-				log.Printf("Got a message: %+v\n", ev)
-				if strings.Contains(ev.Text, "$BTC") {
-					avg = getCurrentBitcoinGlobalAvg()
-					msg := slackRtm.NewOutgoingMessage(fmt.Sprintf("Bitcoin's current price is $%.2f USD.", avg.Last), ev.Channel)
-					slackRtm.SendMessage(msg)
+				if ev.Type == "message" && ev.SubMessage == nil {
+
+					log.Printf("Message from %s/%s in channel %s: %q\n", ev.User, ev.Team, ev.Channel, ev.Text)
+					if strings.Contains(ev.Text, "$BTC") {
+						avg := btcTracker.GetAvg()
+						text := fmt.Sprintf("Bitcoin's current price is $%.2f USD.", avg.Last)
+						msg := slackRtm.NewOutgoingMessage(text, ev.Channel)
+						slackRtm.SendMessage(msg)
+					}
+				} else {
+					if ev.SubMessage != nil {
+						log.Printf("Got message: %+v and submessage: %+v", ev, ev.SubMessage)
+					} else {
+						log.Printf("Got message: %+v\n", ev)
+					}
 				}
-			case *slack.PresenceChangeEvent:
-				log.Printf("Presence change: %+v\n", ev)
-			case *slack.LatencyReport:
-				log.Printf("Current latency: %.0f\n", ev.Value)
-			case *slack.RTMError:
-				log.Printf("Slack Error: %s\n", ev.Error())
 			case *slack.ChannelJoinedEvent:
 				joined := ev.Channel
 				log.Printf("Joined channel %q!\n", joined.Name)
@@ -71,25 +68,8 @@ func main() {
 			case *slack.InvalidAuthEvent:
 				log.Fatalf("Invalid Slack credentials.")
 				break Loop
-			default:
-				log.Printf("Got some other event from Slack: %+v\n", ev)
 			}
 
 		}
 	}
-}
-
-func getCurrentBitcoinGlobalAvg() *btcaverage.GlobalAvg {
-	currency := "USD"
-
-	if avg == nil || time.Since(avg.Timestamp.Time) > time.Minute {
-		newAvg, err := btcaverage.GetCurrentGlobalAvg(currency)
-		if err != nil {
-			log.Printf("Error getting global average!\n%v", err)
-			return avg
-		}
-		avg = newAvg
-	}
-
-	return avg
 }

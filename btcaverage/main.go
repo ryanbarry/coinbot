@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"errors"
 	"io/ioutil"
+	"log"
 	"net/http"
+	"sync"
 	"time"
 )
 
@@ -19,6 +21,47 @@ type GlobalAvg struct {
 	Timestamp      btatime
 	Volume_btc     float64
 	Volume_percent float64
+}
+
+type GlobalTracker struct {
+	avg      *GlobalAvg
+	mu       sync.RWMutex
+	currency string
+	period   time.Duration
+}
+
+func NewGlobalTracker(currency string) (*GlobalTracker, error) {
+	initAvg, err := GetCurrentGlobalAvg(currency)
+	if err != nil {
+		return nil, err
+	}
+
+	gt := &GlobalTracker{avg: initAvg, currency: currency, period: time.Minute}
+	go gt.Poll()
+
+	return gt, nil
+}
+
+func (gt *GlobalTracker) GetAvg() GlobalAvg {
+	gt.mu.RLock()
+	res := *gt.avg
+	gt.mu.RUnlock()
+	return res
+}
+
+func (gt *GlobalTracker) Poll() {
+	for {
+		time.Sleep(gt.period)
+		log.Printf("Fetching new global average...")
+		avg, err := GetCurrentGlobalAvg(gt.currency)
+		if err != nil {
+			log.Printf("Error fetching global avg: ", err.Error())
+			continue
+		}
+		gt.mu.Lock()
+		gt.avg = avg
+		gt.mu.Unlock()
+	}
 }
 
 func GetCurrentGlobalAvg(currency string) (*GlobalAvg, error) {

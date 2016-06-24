@@ -2,10 +2,10 @@ package btcaverage
 
 import (
 	"encoding/json"
-	"errors"
 	"io/ioutil"
 	"log"
 	"net/http"
+	"reflect"
 	"sync"
 	"time"
 )
@@ -13,7 +13,7 @@ import (
 type btatime struct {
 	time.Time
 }
-type GlobalAvg struct {
+type Avg struct {
 	Rolling24h     float64 `json:"24h_avg"`
 	Ask            float64
 	Bid            float64
@@ -24,27 +24,26 @@ type GlobalAvg struct {
 }
 
 type GlobalTracker struct {
-	avg      *GlobalAvg
-	mu       sync.RWMutex
-	currency string
-	period   time.Duration
+	avg    *map[string]Avg
+	mu     sync.RWMutex
+	period time.Duration
 }
 
-func NewGlobalTracker(currency string) (*GlobalTracker, error) {
-	initAvg, err := GetCurrentGlobalAvg(currency)
+func NewGlobalTracker() (*GlobalTracker, error) {
+	initAvg, err := GetCurrentGlobalAvg()
 	if err != nil {
 		return nil, err
 	}
 
-	gt := &GlobalTracker{avg: initAvg, currency: currency, period: time.Minute}
+	gt := &GlobalTracker{avg: initAvg, period: time.Minute}
 	go gt.Poll()
 
 	return gt, nil
 }
 
-func (gt *GlobalTracker) GetAvg() GlobalAvg {
+func (gt *GlobalTracker) GetAvg(currency string) Avg {
 	gt.mu.RLock()
-	res := *gt.avg
+	res := (*gt.avg)[currency]
 	gt.mu.RUnlock()
 	return res
 }
@@ -53,7 +52,7 @@ func (gt *GlobalTracker) Poll() {
 	for {
 		time.Sleep(gt.period)
 		log.Printf("Fetching new global average...")
-		avg, err := GetCurrentGlobalAvg(gt.currency)
+		avg, err := GetCurrentGlobalAvg()
 		if err != nil {
 			log.Printf("Error fetching global avg: ", err.Error())
 			continue
@@ -64,12 +63,8 @@ func (gt *GlobalTracker) Poll() {
 	}
 }
 
-func GetCurrentGlobalAvg(currency string) (*GlobalAvg, error) {
-	if !isValidCurrency(currency) {
-		return nil, errors.New("Invalid currency code! (" + currency + ")")
-	}
-
-	res, err := http.Get("https://api.bitcoinaverage.com/ticker/global/" + currency)
+func GetCurrentGlobalAvg() (*map[string]Avg, error) {
+	res, err := http.Get("https://api.bitcoinaverage.com/ticker/global/all")
 	if err != nil {
 		return nil, err
 	}
@@ -80,23 +75,21 @@ func GetCurrentGlobalAvg(currency string) (*GlobalAvg, error) {
 		return nil, err
 	}
 
-	var avgObj GlobalAvg
-	if err = json.Unmarshal(body, &avgObj); err != nil {
+	var avgs map[string]Avg
+	if err = json.Unmarshal(body, &avgs); err != nil {
+		//FIXME: this could probably be improved upon! the JSON returned by the
+		// "all" call is a uniform object of currency codes to avg objects
+		// EXCEPT for one additional key "timestamp" whose value is a timestamp
+		// string so this expects that particular parse error and ignores it...
+		if e, ok := err.(*json.UnmarshalTypeError); ok {
+			if e.Type == reflect.TypeOf(Avg{}) && e.Value == "string" {
+				return &avgs, nil
+			}
+		}
 		return nil, err
 	}
 
-	return &avgObj, nil
-}
-
-func isValidCurrency(currency string) bool {
-	valid := []string{"USD", "EUR", "GBP"}
-	for _, cc := range valid {
-		if cc == currency {
-			return true
-		}
-	}
-
-	return false
+	return &avgs, nil
 }
 
 func (btat *btatime) UnmarshalJSON(b []byte) error {

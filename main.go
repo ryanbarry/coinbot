@@ -20,13 +20,13 @@ func main() {
 		log.Println("Debug logging turned on.")
 	}
 
-	btcTracker, err := btcaverage.NewGlobalTracker("USD")
+	btcTracker, err := btcaverage.NewGlobalTracker()
 	if err != nil {
-		log.Fatalf("Could not initialize the Global BTC Tracker!")
+		log.Fatal("Could not initialize the Global BTC Tracker! Error: ", err.Error())
 	}
 
 	if *slackToken == "" {
-		log.Println("Slack token not configured; not connecting to Slack!")
+		log.Fatalln("Error: Slack token not configured; not connecting to Slack!")
 	} else {
 		slackApi := slack.New(*slackToken)
 		slackApi.SetDebug(*debugOn)
@@ -49,7 +49,7 @@ func main() {
 
 					log.Printf("Message from %s/%s in channel %s: %q\n", ev.User, ev.Team, ev.Channel, ev.Text)
 					if strings.Contains(ev.Text, "$BTC") {
-						avg := btcTracker.GetAvg()
+						avg := btcTracker.GetAvg("USD")
 						text := fmt.Sprintf("Bitcoin's current price is $%.2f USD.", avg.Last)
 						msg := slackRtm.NewOutgoingMessage(text, ev.Channel)
 						slackRtm.SendMessage(msg)

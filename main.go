@@ -20,7 +20,7 @@ func main() {
 		log.Println("Debug logging turned on.")
 	}
 
-	btcTracker, err := btcaverage.NewGlobalTracker()
+	btcusdTracker, err := btcaverage.NewGlobalTracker()
 	if err != nil {
 		log.Fatal("Could not initialize the Global BTC Tracker! Error: ", err.Error())
 	}
@@ -49,8 +49,8 @@ func main() {
 
 					log.Printf("Message from %s/%s in channel %s: %q\n", ev.User, ev.Team, ev.Channel, ev.Text)
 					if strings.Contains(ev.Text, "$BTC") {
-						avg := btcTracker.GetAvg("USD")
-						text := fmt.Sprintf("Bitcoin's current price is $%.2f USD.", avg.Last)
+						ticker := btcusdTracker.GetAvg("BTCUSD")
+						text := fmt.Sprintf("Bitcoin's current price is $%.2f USD.", ticker.Last)
 						msg := slackRtm.NewOutgoingMessage(text, ev.Channel)
 						slackRtm.SendMessage(msg)
 					}

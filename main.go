@@ -106,7 +106,6 @@ func main() {
 				log.Fatalf("Invalid Slack credentials.")
 				break Loop
 			}
-
 		}
 	}
 }

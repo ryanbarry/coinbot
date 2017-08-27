@@ -4,6 +4,7 @@ echo $SETUP_JSON | sed 's/\\n/\n/g' > setup.json
 echo $CA_PEM | sed 's/\\n/\n/g' > ca.pem
 echo $CERT_PEM | sed 's/\\n/\n/g' > cert.pem
 echo $KEY_PEM | sed 's/\\n/\n/g' > key.pem
+echo $DOCKER_AUTH > config.json
 cd
 docker ps --filter name=coinbot
 docker rm -f coinbot

@@ -1,12 +1,12 @@
 - name: test
   service: devenv
-  command: sh -c "echo build time $CI_STRING_TIME && glide install && go test -v $(glide novendor)"
+  command: sh -c "glide install && go test -v $(glide novendor)"
 
 - name: dockerhub_push
   service: appimg
   type: push
   image_name: ryanbarry/coinbot
-  image_tag: "{{.Branch}}-{{.BuildId}}"
+  image_tag: "{{.CommitID}}"
   encrypted_dockercfg_path: dockercfg.enc
 
 - name: triton_deploy

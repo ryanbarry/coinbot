@@ -1,0 +1,17 @@
+devenv:
+  build:
+    image: ryanbarry/coinbot-dev
+    dockerfile_path: Dockerfile.dev
+  volumes:
+    - .:/go/src/github.com/ryanbarry/coinbot
+
+appimg:
+  build:
+    image: ryanbarry/coinbot
+    dockerfile_path: Dockerfile
+
+deployer:
+  image: ryanbarry/tritoncli
+  encrypted_env_file: deployenv.enc
+  volumes:
+    - ./cideploy.sh:/root/cideploy.sh

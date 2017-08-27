@@ -1,0 +1,14 @@
+- name: test
+  service: devenv
+  command: sh -c "echo build number $CI_BUILD_NUMBER && echo build id $CI_BUILD_ID && go test -v $(glide novendor)"
+
+- name: dockerhub_push
+  service: appimg
+  type: push
+  image_name: ryanbarry/coinbot
+  image_tag: "{{.Branch}}-{{.BuildId}}"
+  encrypted_dockercfg_path: dockercfg.enc
+
+- name: triton_deploy
+  service: deployer
+  command: sh -c "./cideploy.sh"

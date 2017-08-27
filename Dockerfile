@@ -1,6 +1,6 @@
 FROM ryanbarry/coinbot-dev AS buildimg
 
-WORKDIR /go/src/github.com/ryanbarry/coinbot
+WORKDIR /
 
 COPY . .
 RUN glide install

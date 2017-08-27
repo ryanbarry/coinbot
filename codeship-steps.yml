@@ -11,4 +11,4 @@
 
 - name: triton_deploy
   service: deployer
-  command: sh -c "./cideploy.sh"
+  command: ./cideploy.sh

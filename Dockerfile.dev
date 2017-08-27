@@ -1,0 +1,8 @@
+FROM golang:1.7-alpine
+
+RUN mkdir -p /tmp/glide \
+    && apk add --virtual .deps --no-cache openssl \
+    && wget -O - https://github.com/Masterminds/glide/releases/download/v0.12.3/glide-v0.12.3-linux-amd64.tar.gz | tar xzv -C /tmp/glide/ \
+    && mv /tmp/glide/linux-amd64/glide /go/bin/glide \
+    && apk del .deps \
+    && apk add --no-cache git # required for glide install

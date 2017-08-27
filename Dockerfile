@@ -1,9 +1,9 @@
-FROM golang:1.7-alpine AS buildimg
+FROM ryanbarry/coinbot-dev AS buildimg
 
 WORKDIR /go/src/github.com/ryanbarry/coinbot
 
 COPY . .
-
+RUN glide install
 RUN go install
 
 FROM alpine

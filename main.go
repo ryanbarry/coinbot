@@ -11,13 +11,50 @@ import (
 	"github.com/ryanbarry/coinbot/btcaverage"
 )
 
-func main() {
-	debugOn := flag.Bool("debug", false, "Enable debug logging?")
-	slackToken := flag.String("slackToken", "", "API token for the Slack bot account to use")
+type Options struct {
+	debugOn    bool
+	slackToken string
+}
+
+func readOptions() Options {
+	var envDebugOn string
+	var envDebugOnSet bool
+	var flagDebugOn *bool
+	var envSlackToken string
+	var flagSlackToken *string
+
+	envDebugOn, envDebugOnSet = os.LookupEnv("DEBUG_ON")
+	envSlackToken = os.Getenv("SLACK_TOKEN")
+
+	flagDebugOn = flag.Bool("debug", false, "Enable debug logging?")
+	flagSlackToken = flag.String("slackToken", "", "API token for the Slack bot account to use")
 	flag.Parse()
 
-	if *debugOn {
+	finalOpts := new(Options)
+
+	if len(*flagSlackToken) > 0 {
+		finalOpts.slackToken = *flagSlackToken
+	} else {
+		finalOpts.slackToken = envSlackToken
+	}
+
+	if *flagDebugOn {
+		finalOpts.debugOn = true
+	} else {
+		if envDebugOnSet && strings.ToLower(envDebugOn) != "false" {
+			finalOpts.debugOn = true
+		}
+	}
+
+	return *finalOpts
+}
+
+func main() {
+	opts := readOptions()
+
+	if opts.debugOn {
 		log.Println("Debug logging turned on.")
+		log.Println("Got slackToken \"" + opts.slackToken + "\"")
 	}
 
 	btcusdTracker, err := btcaverage.NewGlobalTracker()
@@ -25,12 +62,12 @@ func main() {
 		log.Fatal("Could not initialize the Global BTC Tracker! Error: ", err.Error())
 	}
 
-	if *slackToken == "" {
+	if opts.slackToken == "" {
 		log.Fatalln("Error: Slack token not configured; not connecting to Slack!")
 	} else {
-		slackApi := slack.New(*slackToken)
-		slackApi.SetDebug(*debugOn)
-		if *debugOn {
+		slackApi := slack.New(opts.slackToken)
+		slackApi.SetDebug(opts.debugOn)
+		if opts.debugOn {
 			slack.SetLogger(log.New(os.Stderr, "[Slack] ", log.LstdFlags|log.LUTC))
 		}
 

@@ -12,3 +12,4 @@
 - name: triton_deploy
   service: deployer
   command: ./cideploy.sh
+  encrypted_dockercfg_path: dockercfg.enc

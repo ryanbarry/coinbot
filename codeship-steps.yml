@@ -1,6 +1,6 @@
 - name: test
   service: devenv
-  command: sh -c "echo build number $CI_BUILD_NUMBER && echo build id $CI_BUILD_ID && go test -v $(glide novendor)"
+  command: sh -c "echo build number $CI_BUILD_NUMBER && echo build id $CI_BUILD_ID && glide install && go test -v $(glide novendor)"
 
 - name: dockerhub_push
   service: appimg

@@ -2,6 +2,7 @@ package btcaverage
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -27,47 +28,49 @@ func NewGlobalTracker() (*GlobalTracker, error) {
 		return nil, err
 	}
 
-	btcusd, err := GetCurrentGlobalTicker("BTCUSD")
-	if err != nil {
-		return nil, err
-	}
-
-	gt := &GlobalTracker{tickers: &map[string]Ticker{"BTCUSD": *btcusd}, symbols: sym, period: 10 * time.Minute}
+	// 10-minute period because free API level allows 5k calls/month, which is ~1 every 8.64 minutes
+	gt := &GlobalTracker{tickers: &map[string]Ticker{}, symbols: sym, period: 10 * time.Minute}
 	go gt.poll()
 
 	return gt, nil
 }
 
 func (gt *GlobalTracker) GetAvg(symbol string) (Ticker, error) {
-	var res Ticker
-
 	if _, ok := (*gt.tickers)[symbol]; ok {
 		gt.mu.RLock()
-		res = (*gt.tickers)[symbol]
+		t := (*gt.tickers)[symbol]
 		gt.mu.RUnlock()
+		return t, nil
 	} else {
+		log.Printf("Not tracking %s yet, fetching...", symbol)
 		t, err := GetCurrentGlobalTicker(symbol)
 		if err != nil {
 			return Ticker{}, err
 		}
 
+		gt.mu.Lock()
 		(*gt.tickers)[symbol] = *t
+		gt.mu.Unlock()
+		return *t, nil
 	}
-	return res, nil
 }
 
 func (gt *GlobalTracker) poll() {
 	for {
 		time.Sleep(gt.period)
-		log.Printf("Fetching new global average...")
-		ticker, err := GetCurrentGlobalTicker("BTCUSD")
-		if err != nil {
-			log.Printf("Error fetching global avg: ", err.Error())
-			continue
+
+		for sym, _ := range *gt.tickers {
+			log.Printf("Fetching avg for %s...", sym)
+			ticker, err := GetCurrentGlobalTicker(sym)
+			if err != nil {
+				log.Printf("Error fetching global avg: %s", err.Error())
+				continue
+			}
+			gt.mu.Lock()
+			(*gt.tickers)[sym] = *ticker
+			gt.mu.Unlock()
+			time.Sleep(gt.period)
 		}
-		gt.mu.Lock()
-		(*gt.tickers)["BTCUSD"] = *ticker
-		gt.mu.Unlock()
 	}
 }
 
@@ -85,6 +88,10 @@ func GetCurrentGlobalTicker(symbol string) (*Ticker, error) {
 	res.Body.Close()
 	if err != nil {
 		return nil, err
+	}
+
+	if res.StatusCode != 200 {
+		return nil, fmt.Errorf("Got %d response: \"%s\"", res.StatusCode, body)
 	}
 
 	var ticker Ticker

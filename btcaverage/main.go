@@ -123,6 +123,10 @@ func GetSymbols() (*Symbols, error) {
 		return nil, err
 	}
 
+	if res.StatusCode != 200 {
+		return nil, APIError{fmt.Errorf("Got %d response: \"%s\"", res.StatusCode, body)}
+	}
+
 	var sym Symbols
 	if err = json.Unmarshal(body, &sym); err != nil {
 		return nil, err

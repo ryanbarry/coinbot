@@ -55,8 +55,8 @@ var (
 		sym  string
 		name string
 	}{
-		regexp.MustCompile("\\$BTC($|\\s+)"): {"BTCUSD", "Bitcoin"},
-		regexp.MustCompile("\\$ETH($|\\s+)"): {"ETHUSD", "Ethereum"},
+		regexp.MustCompile("\\$BTC($|[^a-zA-Z0-9-_]+)"): {"BTCUSD", "Bitcoin"},
+		regexp.MustCompile("\\$ETH($|[^a-zA-Z0-9-_]+)"): {"ETHUSD", "Ethereum"},
 	}
 )
 

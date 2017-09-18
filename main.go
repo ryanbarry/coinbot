@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"regexp"
 	"strings"
 
 	"github.com/nlopes/slack"
@@ -49,6 +50,16 @@ func readOptions() Options {
 	return *finalOpts
 }
 
+var (
+	symbolTriggers = map[*regexp.Regexp]struct {
+		sym  string
+		name string
+	}{
+		regexp.MustCompile("\\$BTC($|\\s+)"): {"BTCUSD", "Bitcoin"},
+		regexp.MustCompile("\\$ETH($|\\s+)"): {"ETHUSD", "Ethereum"},
+	}
+)
+
 func main() {
 	opts := readOptions()
 
@@ -85,14 +96,23 @@ func main() {
 				if ev.Type == "message" && ev.SubMessage == nil {
 
 					log.Printf("Message from %s/%s in channel %s: %q\n", ev.User, ev.Team, ev.Channel, ev.Text)
-					if strings.Contains(ev.Text, "$BTC") {
-						ticker, err := btcusdTracker.GetAvg("BTCUSD")
-						if err != nil {
-							slackRtm.SendMessage(slackRtm.NewOutgoingMessage("Error#001", ev.Channel))
-						} else {
-							text := fmt.Sprintf("Bitcoin's current price is $%.2f USD.", ticker.Last)
-							msg := slackRtm.NewOutgoingMessage(text, ev.Channel)
-							slackRtm.SendMessage(msg)
+					for trg, v := range symbolTriggers {
+						if match := trg.FindString(ev.Text); match != "" {
+							ticker, err := btcusdTracker.GetAvg(v.sym)
+							if err != nil {
+								log.Printf("Error calling GetAvg: %v", err)
+								var msg string
+								if e, ok := err.(btcaverage.SymbolError); ok {
+									msg = e.Error()
+								} else {
+									msg = fmt.Sprintf("I was unable to execute your request. (%s)", match)
+								}
+								slackRtm.SendMessage(slackRtm.NewOutgoingMessage(msg, ev.Channel))
+							} else {
+								text := fmt.Sprintf("%s is currently trading at $%.2f USD.", v.name, ticker.Last)
+								msg := slackRtm.NewOutgoingMessage(text, ev.Channel)
+								slackRtm.SendMessage(msg)
+							}
 						}
 					}
 				} else {

@@ -15,10 +15,11 @@ const (
 )
 
 type GlobalTracker struct {
-	tickers *map[string]Ticker
-	symbols *Symbols
-	mu      sync.RWMutex
-	period  time.Duration
+	tickers              *map[string]Ticker
+	tickerIterationOrder []string
+	symbols              *Symbols
+	mu                   sync.RWMutex
+	period               time.Duration
 }
 
 func NewGlobalTracker() (*GlobalTracker, error) {
@@ -51,15 +52,14 @@ func (gt *GlobalTracker) GetAvg(symbol string) (Ticker, error) {
 		gt.mu.Lock()
 		(*gt.tickers)[symbol] = *t
 		gt.mu.Unlock()
+		gt.tickerIterationOrder = append(gt.tickerIterationOrder, symbol)
 		return *t, nil
 	}
 }
 
 func (gt *GlobalTracker) poll() {
 	for {
-		time.Sleep(gt.period)
-
-		for sym, _ := range *gt.tickers {
+		for _, sym := range gt.tickerIterationOrder {
 			log.Printf("Fetching avg for %s...", sym)
 			ticker, err := gt.GetCurrentGlobalTicker(sym)
 			if err != nil {

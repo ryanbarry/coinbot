@@ -72,3 +72,16 @@ type Ticker struct {
 	Timestamp        epochsec
 	DisplayTimestamp btatime `json:"display_timestamp"`
 }
+
+type Symbols struct {
+	Crypto struct {
+		Symbols []string
+	}
+	Global struct {
+		Symbols []string
+	}
+	Local struct {
+		Symbols []string
+	}
+	Success bool
+}

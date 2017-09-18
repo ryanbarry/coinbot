@@ -86,10 +86,14 @@ func main() {
 
 					log.Printf("Message from %s/%s in channel %s: %q\n", ev.User, ev.Team, ev.Channel, ev.Text)
 					if strings.Contains(ev.Text, "$BTC") {
-						ticker := btcusdTracker.GetAvg("BTCUSD")
-						text := fmt.Sprintf("Bitcoin's current price is $%.2f USD.", ticker.Last)
-						msg := slackRtm.NewOutgoingMessage(text, ev.Channel)
-						slackRtm.SendMessage(msg)
+						ticker, err := btcusdTracker.GetAvg("BTCUSD")
+						if err != nil {
+							slackRtm.SendMessage(slackRtm.NewOutgoingMessage("Error#001", ev.Channel))
+						} else {
+							text := fmt.Sprintf("Bitcoin's current price is $%.2f USD.", ticker.Last)
+							msg := slackRtm.NewOutgoingMessage(text, ev.Channel)
+							slackRtm.SendMessage(msg)
+						}
 					}
 				} else {
 					if ev.SubMessage != nil {

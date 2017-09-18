@@ -43,7 +43,7 @@ func (gt *GlobalTracker) GetAvg(symbol string) (Ticker, error) {
 		return t, nil
 	} else {
 		log.Printf("Not tracking %s yet, fetching...", symbol)
-		t, err := GetCurrentGlobalTicker(symbol)
+		t, err := gt.GetCurrentGlobalTicker(symbol)
 		if err != nil {
 			return Ticker{}, err
 		}
@@ -61,7 +61,7 @@ func (gt *GlobalTracker) poll() {
 
 		for sym, _ := range *gt.tickers {
 			log.Printf("Fetching avg for %s...", sym)
-			ticker, err := GetCurrentGlobalTicker(sym)
+			ticker, err := gt.GetCurrentGlobalTicker(sym)
 			if err != nil {
 				log.Printf("Error fetching global avg: %s", err.Error())
 				continue
@@ -74,9 +74,9 @@ func (gt *GlobalTracker) poll() {
 	}
 }
 
-func GetCurrentGlobalTicker(symbol string) (*Ticker, error) {
-	if symbol != "BTCUSD" {
-		panic("Symbols other than BTCUSD are not supported!")
+func (gt *GlobalTracker) GetCurrentGlobalTicker(symbol string) (*Ticker, error) {
+	if !gt.isValidSymbol(symbol) {
+		return nil, SymbolError{fmt.Errorf("Symbol %s is not valid!", symbol)}
 	}
 
 	res, err := http.Get(baseURL + "/indices/global/ticker/" + symbol)
@@ -91,7 +91,7 @@ func GetCurrentGlobalTicker(symbol string) (*Ticker, error) {
 	}
 
 	if res.StatusCode != 200 {
-		return nil, fmt.Errorf("Got %d response: \"%s\"", res.StatusCode, body)
+		return nil, APIError{fmt.Errorf("Got %d response: \"%s\"", res.StatusCode, body)}
 	}
 
 	var ticker Ticker
@@ -100,6 +100,15 @@ func GetCurrentGlobalTicker(symbol string) (*Ticker, error) {
 	}
 
 	return &ticker, nil
+}
+
+func (gt *GlobalTracker) isValidSymbol(sym string) bool {
+	for _, s := range gt.symbols.Global.Symbols {
+		if s == sym {
+			return true
+		}
+	}
+	return false
 }
 
 func GetSymbols() (*Symbols, error) {
